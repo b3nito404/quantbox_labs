@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: quantbox-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: quantbox
+      POSTGRES_PASSWORD: quantbox_dev_password
+      POSTGRES_DB: quantbox
+    ports:
+      - "5432:5432"
+    volumes:
+      - quantbox_pg_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quantbox -d quantbox"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  quantbox_pg_data:
