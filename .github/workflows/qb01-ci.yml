@@ -1,0 +1,74 @@
+name: QB-01 CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "qb01/**"
+      - ".github/workflows/qb01-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "qb01/**"
+      - ".github/workflows/qb01-ci.yml"
+
+defaults:
+  run:
+    working-directory: qb01
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: quantbox
+          POSTGRES_PASSWORD: quantbox_dev_password
+          POSTGRES_DB: quantbox
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U quantbox -d quantbox"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Lint with ruff
+        run: ruff check .
+
+      - name: Type check with mypy
+        run: mypy quantbox
+
+      - name: Initialize PostgreSQL schema
+        run: |
+          PGPASSWORD=quantbox_dev_password psql -h localhost -U quantbox -d quantbox \
+            -f ../infra/docker/init.sql
+        env:
+          PGPASSWORD: quantbox_dev_password
+
+      - name: Run tests with pytest
+        run: pytest
+        env:
+          QB_DB_HOST: localhost
+          QB_DB_PORT: 5432
+          QB_DB_NAME: quantbox
+          QB_DB_USER: quantbox
+          QB_DB_PASSWORD: quantbox_dev_password
