@@ -10,12 +10,24 @@ from quantbox.utils.logging import get_logger
 log = get_logger(__name__)
 
 DEFAULT_PAIRS: list[tuple[str, str]] = [
-    ("SOLUSDT", "AVAXUSDT"),
-    ("SOLUSDT", "ADAUSDT"),
-    ("ATOMUSDT", "DOTUSDT"),
-    ("POLUSDT", "ARBUSDT"),
-    ("LTCUSDT", "BCHUSDT"),
+    ("UNIUSDT", "AAVEUSDT"),
+    ("COMPUSDT", "AAVEUSDT"),
+    ("CRVUSDT", "UNIUSDT"),
+    ("LINKUSDT", "FILUSDT"),
+    ("ICPUSDT", "RENDERUSDT"),
+    ("XRPUSDT", "XLMUSDT"),
+    ("DOGEUSDT", "SHIBUSDT"),
+    ("SANDUSDT", "MANAUSDT"),
 ]
+
+
+# First batch tested, kept for reference, None showed a stable relationship once
+# checked across rolling windows
+#     ("SOLUSDT", "AVAXUSDT"),
+#     ("SOLUSDT", "ADAUSDT"),
+#     ("ATOMUSDT", "DOTUSDT"),
+#     ("POLUSDT", "ARBUSDT"),
+#     ("LTCUSDT", "BCHUSDT"),
 
 
 @dataclass

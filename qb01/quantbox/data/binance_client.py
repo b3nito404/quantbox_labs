@@ -1,12 +1,4 @@
-"""client for the Binance public API, market data only.
-
-This client uses only public endpoints and requires no API key. It reads historical
-market data exclusively and never places orders. Real execution will be a strictly
-separate module, introduced only once a strategy has demonstrated a validated edge.
-
-API reference: https://binance-docs.github.io/apidocs/spot/en/#kline-candlestick-data
-"""
-
+"""Minimal client for the Binance public API, market data only"""
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -20,7 +12,7 @@ log = get_logger(__name__)
 
 BASE_URL = "https://api.binance.com"
 KLINES_ENDPOINT = "/api/v3/klines"
-MAX_LIMIT_PER_CALL = 1000  
+MAX_LIMIT_PER_CALL = 1000  # limit 
 
 
 class BinanceClientError(RuntimeError):
@@ -94,14 +86,17 @@ def fetch_klines_range(
     interval: str = "1h",
     days: int = 30,
 ) -> list[Candle]:
-    """Fetch the full history over the given number of days, paginating automatically.
-
-    Binance limits each call to 1000 candles. For a longer period, calls are repeated
-    while advancing the time window each time.
+    """
+    A symbol can stop returning data before the requested period is covered, for
+    example if it was delisted or only recently listed. This function does not
+    treat that as an error, since partial history can still be legitimate, but it
+    logs a clear warning so the gap is never discovered silently much later by
+    comparing row counts across symbols
     """
     end_time = datetime.now(tz=UTC)
     start_time = end_time - timedelta(days=days)
     step = _interval_to_timedelta(interval) * MAX_LIMIT_PER_CALL
+    expected_candles = int(timedelta(days=days) / _interval_to_timedelta(interval))
 
     all_candles: list[Candle] = []
     window_start = start_time
@@ -123,4 +118,23 @@ def fetch_klines_range(
         window_start = batch[-1].close_time
 
     log.info("Total fetched for %s/%s: %d candles", symbol, interval, len(all_candles))
+
+    # A shortfall of a few candles is normal, caused by the exchange's own data
+    # boundary at the current moment ,A large shortfall usually means the symbol
+    # does not have that much history available, for example because it was
+    # delisted or listed recently, rather than a network or pagination issue
+    shortfall_ratio = 1 - (len(all_candles) / expected_candles) if expected_candles > 0 else 0
+    if shortfall_ratio > 0.1:
+        log.warning(
+            "%s/%s returned %d candles, far fewer than the %d expected for %d days. "
+            "This symbol likely has limited history on this exchange, for example "
+            "due to a recent listing or a delisting. Treat this data with caution "
+            "before using it in any statistical test.",
+            symbol,
+            interval,
+            len(all_candles),
+            expected_candles,
+            days,
+        )
+
     return all_candles
